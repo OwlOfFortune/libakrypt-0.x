@@ -36,7 +36,7 @@
   /* часть первая: создание сокетов */
 
   /* выполняем действия, необходимые для соединения с сервером  */
-   if(( sock = ak_network_socket( AF_INET, SOCK_STREAM, 0 )) == ak_network_undefined_socket ) {
+   if(( sock = ak_network_socket( AF_INET, SOCK_DGRAM, 0 )) == ak_network_undefined_socket ) {
      ak_error_message( ak_error_get_value(), __func__, "wrong socket creation" );
      return ak_libakrypt_destroy();
    }

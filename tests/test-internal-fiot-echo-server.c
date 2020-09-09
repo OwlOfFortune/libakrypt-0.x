@@ -45,7 +45,7 @@
    ak_log_set_level( fiot_log_maximum );
 
   /* создаем сокет */
-   if(( listenfd = ak_network_socket( AF_INET, SOCK_STREAM, 0 )) == ak_network_undefined_socket )
+   if(( listenfd = ak_network_socket( AF_INET, SOCK_DGRAM, 0 )) == ak_network_undefined_socket )
      return ak_error_message_fmt( -1,  __func__,
                                           "wrong creation of listening socket (%s)", strerror(errno));
    memset( &servaddr, 0, sizeof( struct sockaddr_in ));
@@ -60,22 +60,22 @@
    if( ak_network_bind( listenfd,  &servaddr, sizeof( servaddr )) != ak_error_ok )
      return ak_error_message_fmt( -1, __func__,
                                           "wrong binding of listening socket (%s)", strerror(errno));
-  /* начинаем процесс прослушивания сокета */
-   if( ak_network_listen( listenfd, 5 ) != ak_error_ok )
-     return ak_error_message_fmt( ak_error_get_value(), __func__,
-                                        "wrong listening of incomming socket" );
-   printf("echo-server: listening socket is up on %s:%s\n", argv[1], argv[2] );
 
   /* принимаем соединения */
    opt = sizeof( cl_addr );
-   if(( fd = ak_network_accept( listenfd, &cl_addr, &opt )) == -1 )
-     return ak_error_message_fmt( -1, __func__, "wrong accepting connection (%s)", strerror(errno));
 
-  /* определяем координаты клиента */
-   len = sizeof( struct sockaddr_in );
-   if( ak_network_getpeername( fd, (struct sockaddr *)&cl_addr, &len ) != ak_error_ok )
-     return ak_error_message_fmt( -1, __func__,
-                                           "can't determine client's peer (%s)", strerror( errno ));
+   char msg;
+   if (ak_network_recvfrom(listenfd, &msg, 1, MSG_PEEK, &cl_addr, &opt) <= 0) {
+                ak_network_close(listenfd);
+                return ak_error_message(ak_error_read_data, __func__, "wrong first client message receiving");
+   }
+   
+   if (ak_network_connect(listenfd, &cl_addr, opt) != ak_error_ok) {
+                ak_network_close(listenfd);
+                return ak_error_message(error, __func__, "wrong UDP-connection to client address");
+   }
+   fd = listenfd;
+   
    if( ak_network_inet_ntop( AF_INET, &cl_addr.sin_addr, ip, (socklen_t) sizeof( ip )) == NULL )
      return ak_error_message_fmt( -1, __func__,
                                         "can't determine client's address (%s)", strerror( errno ));

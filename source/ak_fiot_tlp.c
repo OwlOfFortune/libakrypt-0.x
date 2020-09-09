@@ -589,6 +589,7 @@
    ak_uint8 *frame = NULL;
    int error = ak_error_ok;
    size_t offset = 0, framelen = 0;
+   ssize_t bytesReceived;
 
   /* необходимые проверки */
    if( fctx->iface_enc == undefined_interface ) {
@@ -602,11 +603,28 @@
 
   /* в начале пытаемся получить из канала связи три байта, содержащие тип фрейма и его длину */
    memset( frame = fctx->inframe.data, 0, fctx->inframe.size );
-   if( ak_fiot_context_read_ptr_timeout( fctx,
-                            encryption_interface, fctx->inframe.data, 3 ) != 3 ) {
-     ak_error_set_value( ak_error_read_data_timeout );
-     return NULL;
+   if (fctx->sock_type == SOCK_STREAM) {
+        /* Если транспортный протокол - TCP, то мы можем считывать фрейм по частям, и сначала
+         * считать длину фрейма, чтобы затем без ошибок считать данные нужного размера */
+
+        /* в начале пытаемся получить из канала связи три байта, содержащие тип фрейма и его длину */
+        if (ak_fiot_context_read_ptr_timeout(fctx,
+                                             encryption_interface, fctx->inframe.data, 3) != 3) {
+            ak_error_set_value(ak_error_read_data_timeout);
+            return NULL;
+        }
+   } else {
+        /* В случае UDP необходимо считать весь фрейм целиком
+         * за одно чтение, надеясь, что его размер не больше текущего
+         * размера входного буфера */
+        bytesReceived = ak_fiot_context_read_ptr_timeout(fctx,
+                                       encryption_interface, fctx->inframe.data, fctx->inframe.size);
+        if (bytesReceived <= 0) {
+            ak_error_set_value(ak_error_read_data_timeout);
+            return NULL;
+        }
    }
+   
   /* проверяем, что тип полученного фрейма корректен */
    ftype = frame[0]&0x3;
    if(( ftype != plain_frame ) && ( ftype != encrypted_frame )) {
@@ -632,16 +650,33 @@
      return NULL;
    }
   /* при необходимости, увеличиваем объем внутреннего буффера */
-   if( framelen > fctx->inframe.size )
+   if( framelen > fctx->inframe.size ) {
      if(( error = ak_fiot_context_set_frame_size( fctx, inframe, framelen )) != ak_error_ok ) {
        ak_error_set_value( error );
        return NULL;
      }
 
-  /* теперь получаем из канала основное тело пакета */
-   if( ak_fiot_context_read_ptr_timeout( fctx, encryption_interface,
-                               frame+3, framelen-3 ) != ( ssize_t ) framelen-3 ) return NULL;
-   ak_fiot_context_log_frame( frame, framelen, __func__ );
+     /* В случае UDP, размер фрейма, больший чем размер буфера, означает, что была
+         * утеряна часть данных. Сообщаем о неуспешном завершении. Заметим, что приемный буфер
+         * был также увеличен, чтобы избежать подобных ошибок для следующих пакетов */
+     if (fctx->sock_type == SOCK_DGRAM) {
+       ak_error_message(fiot_frame_size, __func__, "reading UDP-frame with too large length");
+       return NULL;
+     }
+   }
+
+  /* Для UDP осталось проверить, что был считан весь фрейм */
+   if (fctx->sock_type == SOCK_DGRAM) {
+        if (bytesReceived != framelen) {
+            ak_error_set_value(ak_error_read_data);
+            return NULL;
+        }
+    } else {
+        /* Для TCP теперь получаем из канала основное тело пакета */
+        if (ak_fiot_context_read_ptr_timeout(fctx, encryption_interface,
+                                             frame + 3, framelen - 3) != (ssize_t) framelen - 3)
+            return NULL;
+    }
 
   /* получаем значения счетчиков из номера фрейма, при необходимости, изменяем значения ключей */
    if(( error = ak_fiot_context_read_counters( fctx, frame+3 )) != ak_error_ok ) {

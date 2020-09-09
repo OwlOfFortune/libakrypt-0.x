@@ -615,6 +615,13 @@
 {
   if( fctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
                                                         "using a null pointer to fiot context" );
+
+  int type;
+  socklen_t length = sizeof( type );
+  getsockopt( descriptor, SOL_SOCKET, SO_TYPE, &type, &length );
+  
+  fctx->sock_type = type;
+  
   switch( gate ) {
     case encryption_interface: fctx->iface_enc = descriptor; return ak_error_ok;
     case plain_interface: fctx->iface_plain = descriptor; return ak_error_ok;

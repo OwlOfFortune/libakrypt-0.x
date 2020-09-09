@@ -45,6 +45,25 @@
 #endif
 
 /* ----------------------------------------------------------------------------------------------- */
+int ak_network_recvfrom( ak_socket sock, void *buffer, size_t len, int flags, ak_pointer addr, socklen_t *addrLen )
+{
+    #ifdef _MSC_VER
+        char str[128];
+    #endif
+    int ret = recvfrom(sock, buffer, len, flags, (struct sockaddr *)addr, addrLen);
+    if (ret <= 0) {
+        #ifdef _MSC_VER
+            strerror_s( str, sizeof( str ), WSAGetLastError( ));
+            ak_error_message_fmt( ak_error_read_data, __func__, "wrong data receiving [%s]", str );
+        #else
+            ak_error_message_fmt( ak_error_read_data, __func__,
+                    "wrong data receiving [%s]", strerror( errno ));
+        #endif
+    }
+    return ret;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
  ak_socket ak_network_socket( int domain, int type, int protocol )
 {
  #ifdef _MSC_VER
