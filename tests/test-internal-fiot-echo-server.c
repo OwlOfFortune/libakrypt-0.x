@@ -95,7 +95,7 @@
    if(( error = ak_fiot_context_set_interface_descriptor( &ctx,
                                             encryption_interface, fd )) != ak_error_ok ) goto exit;
    if(( error = ak_fiot_context_set_client( &ctx,
-                                            cl_addr )) != ak_error_ok ) goto exit;
+                                            &cl_addr )) != ak_error_ok ) goto exit;
   /* устанавливаем набор криптографических алгоритмов для обмена зашифрованной информацией */
    if(( error =  ak_fiot_context_set_server_policy( &ctx,
                                             magmaCTRplusGOST3413 )) != ak_error_ok ) goto exit;
