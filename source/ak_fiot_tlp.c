@@ -449,7 +449,7 @@
   /* контрольный вывод */
     ak_fiot_context_log_frame( fctx->oframe.data, framelen, __func__ );
   /* запись данных */
-   if( fctx->write( fctx->iface_enc, fctx->oframe.data, framelen ) != ( ssize_t ) framelen )
+   if( fctx->write( fctx, encryption_interface, fctx->oframe.data, framelen ) != ( ssize_t ) framelen )
     ak_error_set_value( error = ak_error_write_data );
 
   /* изменяем значения счетчиков и ключей после отправки фрейма в канал связи */
@@ -554,8 +554,7 @@
     fd_set fdset;
     struct timeval tv;
 #endif
-    if( gate == encryption_interface ) fd = fctx->iface_enc;
-      else fd = fctx->iface_plain;
+    fd = ak_fiot_context_get_actual_sock(fctx, gate);
 
 #ifdef LIBAKRYPT_HAVE_SYSSELECT_H
     tv.tv_usec = 0; tv.tv_sec = fctx->timeout;
@@ -566,7 +565,7 @@
       return ak_error_set_value( ak_error_read_data_timeout );
 #endif
 
- return fctx->read( fd, buffer, length );
+ return fctx->read( fctx, gate, buffer, length );
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -589,7 +588,7 @@
    ak_uint8 *frame = NULL;
    int error = ak_error_ok;
    size_t offset = 0, framelen = 0;
-   ssize_t bytesReceived;
+   ssize_t bytesReceived = -1;
 
   /* необходимые проверки */
    if( fctx->iface_enc == undefined_interface ) {

@@ -472,13 +472,22 @@
 /*! \brief Смещение собственно сообщения от начала фрейма (для базового заголовка). */
  #define fiot_frame_message_offset   (11)
 
+struct fiot;
+typedef struct fiot *ak_fiot;
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! \brief  Тип функции низкого уровня для чтения из сокета. */
+ typedef ssize_t ( ak_fiot_function_socket_write )( ak_fiot, interface_t, const void *, size_t );
+/*! \brief  Тип функции низкого уровня для записи в сокета. */
+ typedef ssize_t ( ak_fiot_function_socket_read )( ak_fiot, interface_t , void *, size_t );
+
 /* ----------------------------------------------------------------------------------------------- */
 /*! \brief Контекст защищенного соединения протокола sp fiot.
     \details Контекст представляет собой мост, связывающий два сокета (файловых дескриптора) и
     позволяющий инкапсулировать передаваемую по каналам связи информацию.
 
 */
- typedef struct fiot {
+struct fiot {
   /*! \brief Буфер, используемый для формирования исходящих фреймов. */
   /*! \details Размер буффера определяет максимально возможный размер передаваемых в канал
       связи данных - фреймов, с учетом размера заголовка, имитовставки и служебных полей.
@@ -519,9 +528,11 @@
   /*! \brief Дескриптор чтения/записи для интерфейса, отправляющего/получающего открытые данные. */
    ak_socket iface_plain;
   /*! \brief Указатель на функцию записи данных в канал связи. */
-   fiot_function_socket_write *write;
+   ak_fiot_function_socket_write *write;
   /*! \brief Указатель на функцию получения данных из канала связи. */
-   fiot_function_socket_read *read;
+   ak_fiot_function_socket_read *read;
+  /*! \brief Адрес клиента, которому будет отправлено сообщение, в случае использования UDP сокетов. */
+   struct sockaddr_in cl_addr;
   /*! \brief Значение таймаута при ожидании входящих пакетов (в секундах) */
    time_t timeout;
 
@@ -589,7 +600,7 @@
   /*! \brief Флаги, устанавливаемые расширениями. */
    ak_uint64 extensionFlags;
 
-} *ak_fiot;
+};
 
 /* ----------------------------------------------------------------------------------------------- */
 /** \addtogroup fiot_functions Функции создания и настройки параметров контекста защищенного взаимодействия
@@ -608,10 +619,14 @@
  size_t ak_fiot_context_get_frame_size( ak_fiot , frame_buffer_t );
 /*! \brief Установка роли участника защищенного соединения. */
  int ak_fiot_context_set_role( ak_fiot , const role_t );
+/*! \brief Получение текущего статуса контекста защищенного взаимодействия. */
+ int ak_fiot_context_set_client( ak_fiot, struct sockaddr_in );
 /*! \brief Получение роли участника защищенного взаимодействия. */
  role_t ak_fiot_context_get_role( ak_fiot );
 /*! \brief Получение текущего статуса контекста защищенного взаимодействия. */
  context_state_t ak_fiot_context_get_state( ak_fiot );
+/*! \brief Получение сокета для заданного типа соединения. */
+ak_socket ak_fiot_context_get_actual_sock ( ak_fiot , interface_t );
 
 /*! \brief Установка идентификатора участника защищенного взаимодействия. */
  int ak_fiot_context_set_user_identifier( ak_fiot , role_t , void *, const size_t );

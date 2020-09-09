@@ -35,9 +35,9 @@
 
 /* ----------------------------------------------------------------------------------------------- */
 /*! \brief  Тип функции низкого уровня для чтения из сокета. */
- typedef ssize_t ( fiot_function_socket_write )( ak_socket , const void *, size_t );
+ typedef ssize_t ( ak_network_function_socket_write )( ak_socket , const void *, size_t );
 /*! \brief  Тип функции низкого уровня для записи в сокета. */
- typedef ssize_t ( fiot_function_socket_read )( ak_socket , void *, size_t );
+ typedef ssize_t ( ak_network_function_socket_read )( ak_socket , void *, size_t );
 
 /* ----------------------------------------------------------------------------------------------- */
 #ifdef LIBAKRYPT_HAVE_WINDOWS_H

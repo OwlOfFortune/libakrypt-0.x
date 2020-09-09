@@ -70,10 +70,6 @@
                 return ak_error_message(ak_error_read_data, __func__, "wrong first client message receiving");
    }
    
-   if (ak_network_connect(listenfd, &cl_addr, opt) != ak_error_ok) {
-                ak_network_close(listenfd);
-                return ak_error_message(error, __func__, "wrong UDP-connection to client address");
-   }
    fd = listenfd;
    
    if( ak_network_inet_ntop( AF_INET, &cl_addr.sin_addr, ip, (socklen_t) sizeof( ip )) == NULL )
@@ -98,6 +94,8 @@
   /* устанавливаем сокет для внешнего (шифрующего) интерфейса */
    if(( error = ak_fiot_context_set_interface_descriptor( &ctx,
                                             encryption_interface, fd )) != ak_error_ok ) goto exit;
+   if(( error = ak_fiot_context_set_client( &ctx,
+                                            cl_addr )) != ak_error_ok ) goto exit;
   /* устанавливаем набор криптографических алгоритмов для обмена зашифрованной информацией */
    if(( error =  ak_fiot_context_set_server_policy( &ctx,
                                             magmaCTRplusGOST3413 )) != ak_error_ok ) goto exit;

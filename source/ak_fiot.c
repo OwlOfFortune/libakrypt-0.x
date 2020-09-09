@@ -83,6 +83,50 @@
 /*                    функции для работы с контектами протокола sp fiot                            */
 /* ----------------------------------------------------------------------------------------------- */
 
+ ak_socket ak_fiot_context_get_actual_sock ( ak_fiot fctx, interface_t gate )
+{
+    switch( gate ) {
+    case encryption_interface: return fctx->iface_enc;
+    case plain_interface: return fctx->iface_plain;
+    default: return -1;
+    }
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+ static ssize_t ak_fiot_context_read_tcp ( ak_fiot fctx, interface_t gate, void * buf, size_t length )
+{
+    ak_socket sock = ak_fiot_context_get_actual_sock(fctx, gate);
+#ifdef LIBAKRYPT_HAVE_WINDOWS_H
+    /* здесь установлены функции-обертки для стандартных вызовов в Windows */
+   return ak_network_read_win(sock, buf, length);
+#else
+   return read(sock, buf, length);
+#endif
+}
+
+static ssize_t ak_fiot_context_read_udp ( ak_fiot fctx, interface_t gate, void * buf, size_t length )
+{
+   ak_socket sock = ak_fiot_context_get_actual_sock(fctx, gate);
+   return recvfrom(sock, buf, length, 0, NULL, NULL);
+}
+
+ static ssize_t ak_fiot_context_write_tcp ( ak_fiot fctx, interface_t gate, const void * buf, size_t length )
+{
+    ak_socket sock = ak_fiot_context_get_actual_sock(fctx, gate);
+#ifdef LIBAKRYPT_HAVE_WINDOWS_H
+    /* здесь установлены функции-обертки для стандартных вызовов в Windows */
+   return ak_network_write_win(sock, buf, length);
+#else
+   return write(sock, buf, length);
+#endif  
+}
+
+static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const void * buf, size_t length )
+{
+	ak_socket sock = ak_fiot_context_get_actual_sock(fctx, gate);
+        return sendto(sock, buf, length, 0, (struct sockaddr *)&fctx->cl_addr, sizeof(fctx->cl_addr));
+}
+
 /* ----------------------------------------------------------------------------------------------- */
 /*! \brief Функция инициализирует базовые поля контекста защищенного соединения.
     \param fctx Контекст защищенного соединения протокола sp fiot. Под контекст должна быть
@@ -125,15 +169,8 @@
   /* дескрипторы сокетов */
    fctx->iface_enc = fctx->iface_plain = ak_network_undefined_socket;
 
-  /* устанавливаем функции чтения и записи по-умолчанию */
-#ifdef LIBAKRYPT_HAVE_WINDOWS_H
-    /* здесь установлены функции-обертки для стандартных вызовов в Windows */
-      fctx->write = ak_network_write_win;
-      fctx->read = ak_network_read_win;
-#else
-   fctx->write = write;
-   fctx->read = read;
-#endif
+   fctx->write = NULL;
+   fctx->read = NULL;
 
   /* устанавливаем таймаут ожидания входящих пакетов (в секундах) */
    fctx->timeout = 3;
@@ -463,6 +500,13 @@
 }
 
 /* ----------------------------------------------------------------------------------------------- */
+ int ak_fiot_context_set_client( ak_fiot fctx, struct sockaddr_in cl_addr )
+{
+	fctx->cl_addr = cl_addr;
+	return ak_error_ok;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
 /*! \param fctx Контекст защищенного соединения протокола sp fiot.
 
     \return Функция возвращает значение роли контекста защищенного взаимодействия.
@@ -621,6 +665,14 @@
   getsockopt( descriptor, SOL_SOCKET, SO_TYPE, &type, &length );
   
   fctx->sock_type = type;
+
+  if ( type == SOCK_DGRAM ) {
+    fctx->write = ak_fiot_context_write_udp;
+    fctx->read  = ak_fiot_context_read_udp; 
+  } else {
+    fctx->write = ak_fiot_context_write_tcp;
+    fctx->read  = ak_fiot_context_read_tcp;
+  }
   
   switch( gate ) {
     case encryption_interface: fctx->iface_enc = descriptor; return ak_error_ok;
