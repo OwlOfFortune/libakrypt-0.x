@@ -532,7 +532,8 @@ struct fiot {
   /*! \brief Указатель на функцию получения данных из канала связи. */
    ak_fiot_function_socket_read *read;
   /*! \brief Адрес клиента, которому будет отправлено сообщение, в случае использования UDP сокетов. */
-   struct sockaddr_in* cl_addr;
+   struct sockaddr_in cl_addr;
+   int cl_addr_is_set;
   /*! \brief Значение таймаута при ожидании входящих пакетов (в секундах) */
    time_t timeout;
 
@@ -619,8 +620,10 @@ struct fiot {
  size_t ak_fiot_context_get_frame_size( ak_fiot , frame_buffer_t );
 /*! \brief Установка роли участника защищенного соединения. */
  int ak_fiot_context_set_role( ak_fiot , const role_t );
-/*! \brief Получение текущего статуса контекста защищенного взаимодействия. */
- int ak_fiot_context_set_client( ak_fiot, struct sockaddr_in* );
+/*! \brief Установка адреса клиента для взаимодействия. */
+ int ak_fiot_context_set_client( ak_fiot, struct sockaddr_in );
+/*! \brief Получение адреса клиента для взаимодействия. */
+ const struct sockaddr_in* ak_fiot_context_get_client( ak_fiot );
 /*! \brief Получение роли участника защищенного взаимодействия. */
  role_t ak_fiot_context_get_role( ak_fiot );
 /*! \brief Получение текущего статуса контекста защищенного взаимодействия. */

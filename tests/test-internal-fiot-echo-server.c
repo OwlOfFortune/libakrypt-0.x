@@ -95,7 +95,7 @@
    if(( error = ak_fiot_context_set_interface_descriptor( &ctx,
                                             encryption_interface, fd )) != ak_error_ok ) goto exit;
    if(( error = ak_fiot_context_set_client( &ctx,
-                                            &cl_addr )) != ak_error_ok ) goto exit;
+                                            cl_addr )) != ak_error_ok ) goto exit;
   /* устанавливаем набор криптографических алгоритмов для обмена зашифрованной информацией */
    if(( error =  ak_fiot_context_set_server_policy( &ctx,
                                             magmaCTRplusGOST3413 )) != ak_error_ok ) goto exit;
@@ -115,7 +115,7 @@
         if( data == NULL ) continue;
          else {
                 data[length-1] = 0;
-                printf( "echo-server: recived [%s]\n", data );
+                printf( "echo-server: recived [%ld]\n", length );
               }
         if( strncmp( (char *)data, "quit", 4 ) == 0 ) done = 1;
         if(( error = ak_fiot_context_write_frame( &ctx,

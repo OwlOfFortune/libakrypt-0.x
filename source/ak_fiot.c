@@ -123,10 +123,10 @@ static ssize_t ak_fiot_context_read_udp ( ak_fiot fctx, interface_t gate, void *
 
 static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const void * buf, size_t length )
 {
-	if ( !fctx->cl_addr ) 
+	if ( !fctx->cl_addr_is_set ) 
 		return ak_fiot_context_write_tcp(fctx, gate, buf, length);
 	ak_socket sock = ak_fiot_context_get_actual_sock(fctx, gate);
-        return sendto(sock, buf, length, 0, (struct sockaddr*) fctx->cl_addr, sizeof(*fctx->cl_addr));
+        return sendto(sock, buf, length, 0, (struct sockaddr*) &fctx->cl_addr, sizeof(fctx->cl_addr));
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -173,7 +173,8 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 
    fctx->write = NULL;
    fctx->read = NULL;
-   fctx->cl_addr = NULL;
+   fctx->cl_addr;
+   fctx->cl_addr_is_set = 0;
 
   /* устанавливаем таймаут ожидания входящих пакетов (в секундах) */
    fctx->timeout = 3;
@@ -503,8 +504,9 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 }
 
 /* ----------------------------------------------------------------------------------------------- */
- int ak_fiot_context_set_client( ak_fiot fctx, struct sockaddr_in* cl_addr )
+ int ak_fiot_context_set_client( ak_fiot fctx, struct sockaddr_in cl_addr )
 {
+	fctx->cl_addr_is_set = 1;
 	fctx->cl_addr = cl_addr;
 	return ak_error_ok;
 }
@@ -522,6 +524,12 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
     return undefined_role;
   }
  return fctx->role;
+}
+ 
+/* ----------------------------------------------------------------------------------------------- */
+ const struct sockaddr_in* ak_fiot_context_get_client( ak_fiot fctx )
+{
+	return &fctx->cl_addr;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
