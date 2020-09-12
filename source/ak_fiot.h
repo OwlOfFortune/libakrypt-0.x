@@ -565,7 +565,7 @@ struct fiot {
       передаваемых в ходе выполнения протокола выработки общих ключей. */
    struct mac comp;
 
-  /* ak_skey secret */
+  ak_skey blom_key;
   /*! \brief Ключевая информация, используемая для передачи зашифрованных сообщений от
       сервера к клиенту. В тексте рекомендаций обозначается SHTS и SATS. */
    ak_uint8 server_ts[64];
@@ -622,6 +622,8 @@ struct fiot {
  int ak_fiot_context_set_role( ak_fiot , const role_t );
 /*! \brief Установка адреса клиента для взаимодействия. */
  int ak_fiot_context_set_client( ak_fiot, struct sockaddr_in );
+/*! \brief Установка ключа из схемы Блома. */
+ int ak_fiot_context_set_bloom_key( ak_fiot, ak_uint8 [32 * 256] );
 /*! \brief Получение адреса клиента для взаимодействия. */
  const struct sockaddr_in* ak_fiot_context_get_client( ak_fiot );
 /*! \brief Получение роли участника защищенного взаимодействия. */

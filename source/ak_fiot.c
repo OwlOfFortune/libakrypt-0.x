@@ -173,7 +173,7 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 
    fctx->write = NULL;
    fctx->read = NULL;
-   fctx->cl_addr;
+   fctx->blom_key = NULL;
    fctx->cl_addr_is_set = 0;
 
   /* устанавливаем таймаут ожидания входящих пакетов (в секундах) */
@@ -230,6 +230,8 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 #endif
 
  /* очищаем память буфферов */
+  ak_skey_context_destroy (fctx->blom_key);
+  free(fctx->blom_key);
   ak_buffer_destroy( &fctx->oframe );
   ak_buffer_destroy( &fctx->inframe );
   ak_buffer_destroy( &fctx->header_data );
@@ -506,9 +508,13 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 /* ----------------------------------------------------------------------------------------------- */
  int ak_fiot_context_set_client( ak_fiot fctx, struct sockaddr_in cl_addr )
 {
-	fctx->cl_addr_is_set = 1;
-	fctx->cl_addr = cl_addr;
-	return ak_error_ok;
+  if( fctx == NULL ) {
+    return ak_error_message( ak_error_null_pointer, __func__, "using null pointer to fiot context" );
+  }
+  
+  fctx->cl_addr_is_set = 1;
+  fctx->cl_addr = cl_addr;
+  return ak_error_ok;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -523,13 +529,47 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
     ak_error_message( ak_error_null_pointer, __func__, "using null pointer to fiot context" );
     return undefined_role;
   }
- return fctx->role;
+
+  return fctx->role;
 }
  
 /* ----------------------------------------------------------------------------------------------- */
  const struct sockaddr_in* ak_fiot_context_get_client( ak_fiot fctx )
 {
-	return &fctx->cl_addr;
+  if( fctx == NULL ) {
+    ak_error_message( ak_error_null_pointer, __func__, "using null pointer to fiot context" );
+    return NULL;
+  }
+  
+  if ( !fctx->cl_addr_is_set ) {
+    ak_error_message( ak_error_null_pointer, __func__, "client address is not set" );
+    return NULL;
+  }
+  
+  return &fctx->cl_addr;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+int ak_fiot_context_set_bloom_key( ak_fiot fctx, ak_uint8 blom_data [32 * 256] )
+{
+  int error = ak_error_ok;
+
+  if( fctx == NULL ) {
+      return ak_error_message( ak_error_null_pointer, __func__, "using null pointer to fiot context" );
+  }
+
+  if ( fctx->blom_key != NULL && (error = ak_skey_context_destroy (fctx->blom_key)) != ak_error_ok )
+      return error;
+  else 
+      fctx->blom_key = malloc(sizeof(*fctx->blom_key));
+
+  if ( (error = ak_skey_context_create(fctx->blom_key, 32 * 256, 8) )  != ak_error_ok )
+	  return error;
+  
+  if ( (error = ak_skey_context_set_key(fctx->blom_key, blom_data, 32 * 256, ak_true )) != ak_error_ok )
+	 return error;
+
+  return error;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -748,6 +788,47 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 }
 
 /* ----------------------------------------------------------------------------------------------- */
+
+static inline void ak_bswap64_4(ak_uint64 val[4])
+{
+	val[0] = bswap_64(val[0]);
+	val[1] = bswap_64(val[1]);
+	val[2] = bswap_64(val[2]);
+	val[3] = bswap_64(val[3]);
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+ static void ak_blom_get_common_key(ak_skey blom_key, ak_uint8 remote_id[32], ak_uint8 common_key[32] )
+{
+  blom_key->unmask(blom_key);
+
+  ak_mpzn256 remote;
+  ak_mpzn256 local;
+  ak_mpzn256 tmp[2];
+  ak_mpzn256 res = ak_mpzn256_zero;
+  ak_mpzn256 remote_pow[2] = {{1, 0, 0, 0}};
+
+  memcpy(remote, remote_id, 32);
+#ifdef LIBAKRYPT_BIG_ENDIAN
+  ak_bswap64_4(remote);
+#endif	
+  for (int i=0; i<256; ++i) {
+    memcpy(local, ((ak_uint8*) blom_key->key.data) + i*32, 32);
+#ifdef LIBAKRYPT_BIG_ENDIAN
+    ak_bswap64_4(local);
+#endif
+    ak_mpzn_mul(*tmp, local, *remote_pow, ak_mpzn256_size);
+    ak_mpzn_add(res, res, *tmp, ak_mpzn256_size);
+    ak_mpzn_mul(*remote_pow, *remote_pow, remote,ak_mpzn256_size);
+  }
+
+  blom_key->set_mask(blom_key);
+#ifdef LIBAKRYPT_BIG_ENDIAN
+  ak_bswap64_4(res);
+#endif
+  memcpy(common_key, res, 32);
+}
+/* ----------------------------------------------------------------------------------------------- */
 /*! На момент вызова функции должен быть установлен идентификатор предварительно
     распределенного ключа (`epsk_id`) и должен быть создана структура секретного ключа `epsk`.
 
@@ -758,21 +839,33 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
  int ak_fiot_context_set_psk_key( ak_fiot fctx )
 {
   struct hash ctx;
-  ak_uint8 out[32];
+  ak_uint8 remote_hash[32];
+  ak_uint8 common_key[32];
+  if ( fctx == NULL )
+    return ak_error_message( ak_error_null_pointer, __func__,
+                                                            "using null pointer to fiot context" );
 
-   if( !ak_buffer_is_assigned( &fctx->epsk_id ))
-     return ak_error_message( fiot_error_wrong_psk_identifier_using, __func__,
+  if ( fctx->blom_key == NULL )
+    return ak_error_message( ak_error_null_pointer, __func__,
+                                                            "using null pointer to blom key" );
+  if ( !ak_buffer_is_assigned( &fctx->epsk_id ) )
+    return ak_error_message( fiot_error_wrong_psk_identifier_using, __func__,
                                                    "using an undefined preshared key identifier" );
+   
+  ak_hash_context_create_streebog256( &ctx );
+  
+  if ( fctx->role == client_role ) {
+  	ak_hash_context_ptr( &ctx, fctx->server_id.data, fctx->server_id.size, remote_hash );
+  } else {
+  	ak_hash_context_ptr( &ctx, fctx->epsk_id.data, fctx->epsk_id.size, remote_hash );
+  }
 
-  /*! \note В настоящий момент это заглушка. */
-    ak_hash_context_create_streebog256( &ctx );
-    ak_hash_context_ptr( &ctx, fctx->epsk_id.data, fctx->epsk_id.size, out );
-    ak_mac_context_set_key( &fctx->epsk, out, sizeof( out ), ak_true );
-    ak_hash_context_destroy( &ctx );
-
- ak_error_message( ak_error_ok, __func__, "Ok" );
-
- return ak_error_ok;
+  ak_blom_get_common_key(fctx->blom_key, remote_hash, common_key);
+  
+  ak_hash_context_destroy( &ctx );
+  ak_mac_context_set_key( &fctx->epsk, common_key, sizeof( common_key ), ak_true );
+  ak_error_message( ak_error_ok, __func__, "Ok" );
+  return ak_error_ok;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
