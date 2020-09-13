@@ -623,7 +623,9 @@ struct fiot {
 /*! \brief Установка адреса клиента для взаимодействия. */
  int ak_fiot_context_set_client( ak_fiot, struct sockaddr_in );
 /*! \brief Установка ключа из схемы Блома. */
- int ak_fiot_context_set_bloom_key( ak_fiot, ak_uint8 [32 * 256] );
+ int ak_fiot_context_set_blom_key( ak_fiot, ak_uint8 [32 * 256] );
+/*! \brief Установка ключа из схемы Блома другим ключом. */
+ int ak_fiot_context_set_blom_key_from_skey( ak_fiot, ak_skey, bool_t );
 /*! \brief Получение адреса клиента для взаимодействия. */
  const struct sockaddr_in* ak_fiot_context_get_client( ak_fiot );
 /*! \brief Получение роли участника защищенного взаимодействия. */

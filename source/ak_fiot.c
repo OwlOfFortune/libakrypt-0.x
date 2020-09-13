@@ -550,7 +550,7 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 }
 
 /* ----------------------------------------------------------------------------------------------- */
-int ak_fiot_context_set_bloom_key( ak_fiot fctx, ak_uint8 blom_data [32 * 256] )
+ int ak_fiot_context_set_blom_key( ak_fiot fctx, ak_uint8 blom_data [32 * 256] )
 {
   int error = ak_error_ok;
 
@@ -569,6 +569,31 @@ int ak_fiot_context_set_bloom_key( ak_fiot fctx, ak_uint8 blom_data [32 * 256] )
   if ( (error = ak_skey_context_set_key(fctx->blom_key, blom_data, 32 * 256, ak_true )) != ak_error_ok )
 	 return error;
 
+  return error;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+ int ak_fiot_context_set_blom_key_from_skey( ak_fiot fctx, ak_skey skey, bool_t delegate )
+{
+  int error = ak_error_ok;
+
+  if ( fctx == NULL ) {
+    return ak_error_message( ak_error_null_pointer, __func__, "using null pointer to fiot context" );
+  }
+
+  if ( skey == fctx->blom_key )
+    return ak_error_ok;
+  
+  if ( fctx->blom_key != NULL ) {
+    if ((error = ak_skey_context_destroy (fctx->blom_key)) != ak_error_ok )
+      return error;
+    free(fctx->blom_key);
+  }
+
+  if (delegate == ak_true)
+      fctx->blom_key = skey;
+  else
+      ak_skey_context_create_and_set_skey(fctx->blom_key, skey);
   return error;
 }
 
