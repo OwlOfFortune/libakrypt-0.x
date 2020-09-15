@@ -707,23 +707,22 @@
     а также устанавливается код ошибки, который может быть определен с помощью
     вызова функции ak_error_get_value().                                                           */
 /* ----------------------------------------------------------------------------------------------- */
- ak_uint8 *ak_fiot_context_read_frame( ak_fiot fctx, size_t *length, message_t *mtype )
+ ak_uint8 *ak_fiot_context_read_frame( ak_fiot fctx, size_t *length, message_t *mtype, frame_type_t* ftype )
 {
    int i;
    ak_uint8 out[64]; /* максимальная длина имитовставки - длина хэшкода для Стрибога 512 */
-   frame_type_t ftype;
    ak_mac ikey = NULL;
    ak_bckey ekey = NULL;
    ak_uint8 *frame = NULL;
    size_t ilen = 4, offset = 0, framelen = 0;
 
   /* считываем фрейм */
-   if(( frame = ak_fiot_context_read_frame_ptr( fctx, &offset, &framelen, &ftype )) == NULL )
+   if(( frame = ak_fiot_context_read_frame_ptr( fctx, &offset, &framelen, ftype )) == NULL )
      return NULL;
 
   /* теперь процесс проверки данных
      начинаем с уcтановки ключей и проверки длины имитовставки */
-   if( ftype == plain_frame ) ikey = &fctx->epsk;
+   if( *ftype == plain_frame ) ikey = &fctx->epsk;
     else {
           switch( fctx->role ) {
            /* пишем своими ключами, читаем чужими */
@@ -754,7 +753,7 @@
    }
 
  /* расшифровываем и проверяем контрольную сумму (aead не работает) */
-   if( ftype == encrypted_frame ) {
+   if( *ftype == encrypted_frame ) {
     /*! \todo здесь надо аккуратно определить iv для режима aead */
      if( ekey->bsize == 16 )
        ak_bckey_context_ctr( ekey, frame + offset,

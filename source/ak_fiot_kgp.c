@@ -714,8 +714,9 @@
   size_t length = 0;
   ak_uint8 *data = NULL;
   int error = ak_error_ok;
+  frame_type_t ftype;
 
-  if(( data = ak_fiot_context_read_frame( fctx, &length, &mtype )) == NULL )
+  if(( data = ak_fiot_context_read_frame( fctx, &length, &mtype, &ftype )) == NULL )
     return ak_error_message( ak_error_get_value(), __func__, "incorrect reading an extension" );
 
  /* проверяем то, что получили */
@@ -841,10 +842,12 @@
 {
   message_t mtype;
   size_t length = 0;
+  frame_type_t ftype;
   int error = ak_error_ok;
   ak_uint8 *data = NULL, out[64];
 
-  if(( data = ak_fiot_context_read_frame( fctx, &length, &mtype )) == NULL )
+
+  if(( data = ak_fiot_context_read_frame( fctx, &length, &mtype, &ftype )) == NULL )
     return ak_error_message( ak_error_get_value(), __func__,
                                                            "incorrect reading of verify message" );
  /* проверяем то, что получили */

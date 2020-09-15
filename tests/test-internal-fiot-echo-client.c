@@ -109,6 +109,7 @@ ak_uint8 blom_key[32*256] = {
       size_t length;
       message_t mtype = undefined_message;
       ak_uint8 *data = NULL;
+      frame_type_t ftype;
 
       memset( str, 0, sizeof( str ));
       printf("echo-client> "); fgets( str, sizeof( str ), stdin );
@@ -116,7 +117,7 @@ ak_uint8 blom_key[32*256] = {
                                              encrypted_frame, application_data )) != ak_error_ok ) {
         ak_error_message( error, __func__, "write error" );
       } else printf("echo-client: send %u bytes\n", (unsigned int) strlen( str ));
-      if(( data = ak_fiot_context_read_frame( &ctx, &length, &mtype )) != NULL ) {
+      if(( data = ak_fiot_context_read_frame( &ctx, &length, &mtype, &ftype )) != NULL ) {
         data[length-1] = 0;
         printf("echo-client: recived [%s, %u bytes]\n", data, (unsigned int) length );
         if( strncmp( (char *)data, "quit", 4 ) == 0 ) done = 0;

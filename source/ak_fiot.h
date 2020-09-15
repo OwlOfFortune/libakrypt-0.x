@@ -702,7 +702,7 @@ ak_socket ak_fiot_context_get_actual_sock ( ak_fiot , interface_t );
 /*! \brief Получение данных из канала связи в течение заданного интервала времени. */
  ssize_t ak_fiot_context_read_ptr_timeout( ak_fiot , interface_t , ak_pointer , size_t );
 /*! \brief Получение фрейма из канала связи. */
- ak_uint8 *ak_fiot_context_read_frame( ak_fiot , size_t *, message_t * );
+ ak_uint8 *ak_fiot_context_read_frame( ak_fiot , size_t *, message_t *, frame_type_t * );
 /*! \brief Получение данных из канала связи и преобразование их к сериализованному представлению фрейма. */
  ak_uint8 *ak_fiot_context_read_frame_ptr( ak_fiot , size_t * , size_t * , frame_type_t * );
 

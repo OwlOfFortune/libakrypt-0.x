@@ -115,8 +115,9 @@ ak_uint8 blom_key[32*256] = {
    do {
         size_t length;
         message_t mtype = undefined_message;
-        ak_uint8 *data = ak_fiot_context_read_frame( &ctx, &length, &mtype );
-        if( data == NULL ) continue;
+        frame_type_t ftype; 
+        ak_uint8 *data = ak_fiot_context_read_frame( &ctx, &length, &mtype, &ftype );
+	if( data == NULL ) continue;
          else {
                 data[length-1] = 0;
                 printf( "echo-server: recived [%ld]\n", length );

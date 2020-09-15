@@ -592,8 +592,10 @@ static ssize_t ak_fiot_context_write_udp ( ak_fiot fctx, interface_t gate, const
 
   if (delegate == ak_true)
       fctx->blom_key = skey;
-  else
+  else {
+      fctx->blom_key= malloc(sizeof(struct skey));
       ak_skey_context_create_and_set_skey(fctx->blom_key, skey);
+  }
   return error;
 }
 
