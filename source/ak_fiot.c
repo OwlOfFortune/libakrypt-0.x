@@ -825,8 +825,11 @@ static inline void ak_bswap64_4(ak_uint64 val[4])
 }
 
 /* ----------------------------------------------------------------------------------------------- */
- static void ak_blom_get_common_key(ak_skey blom_key, ak_uint8 remote_id[32], ak_uint8 common_key[32] )
+ static int ak_blom_get_common_key(ak_skey blom_key, ak_uint8 remote_id[32], ak_uint8 common_key[32] )
 {
+  if (blom_key->check_icode(blom_key) != ak_true)
+	  return ak_error_message( ak_error_wrong_key_icode,
+                                                __func__ , "using blom key with wrong integrity code" ); 
   blom_key->unmask(blom_key);
 
   ak_mpzn256 remote;
@@ -854,6 +857,8 @@ static inline void ak_bswap64_4(ak_uint64 val[4])
   ak_bswap64_4(res);
 #endif
   memcpy(common_key, res, 32);
+
+  return ak_error_ok;
 }
 /* ----------------------------------------------------------------------------------------------- */
 /*! На момент вызова функции должен быть установлен идентификатор предварительно

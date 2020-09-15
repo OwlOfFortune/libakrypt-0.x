@@ -191,7 +191,7 @@
     ak_hmac_context_destroy( &hctx );
     return ak_error_message( error, __func__, "incorrect creation of mac context" );
   }
-  if(( error != ak_mac_context_set_key( &ctx,
+  if(( error = ak_mac_context_set_key( &ctx,
                                fctx->secret, sizeof( fctx->secret ), ak_true )) != ak_error_ok ) {
     ak_error_message_fmt( error, __func__, "incorrect assigning %s secret key value", ds );
     goto labexit;
@@ -480,7 +480,8 @@
   ak_uint8 *dataptr = data;
   size_t meslen = 0, ilen = 0;
 
-  if( fctx == NULL ) ak_error_message( ak_error_null_pointer, __func__,
+  if( fctx == NULL ) 
+	return ak_error_message( ak_error_null_pointer, __func__,
                                                            "using null pointer to fiot context" );
   ilen = ( fctx->role == client_role ) ? fctx->icfk.hsize : fctx->isfk.hsize;
   meslen = fctx->oframe.size - fctx->header_offset - 3 - 2 - ilen;
@@ -502,8 +503,10 @@
   ak_uint8 data[256];
   int error = ak_error_ok;
 
-  if( fctx == NULL ) ak_error_message( ak_error_null_pointer, __func__,
+  if( fctx == NULL ) {
+	  return ak_error_message( ak_error_null_pointer, __func__,
                                                            "using null pointer to fiot context" );
+  }
  /* формируем сериализованное представление сообщения об ошибке */
   memset( data, 0, sizeof( data ));
   data[0] = ( ak_uint8 )(( alert >> 8 )%256 );
